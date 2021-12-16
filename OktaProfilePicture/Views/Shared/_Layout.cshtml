@@ -16,7 +16,23 @@
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div class="navbar-collapse collapse d-sm-inline-flex flex-sm-row-reverse">
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                      <ul class="nav navbar-nav navbar-right">
+                        <li><p class="navbar-text">Hello, @User.Identity.Name</p></li>
+                        @* <li><a class="nav-link" asp-controller="Account" asp-action="Profile" id="profile-button">Profile</a></li> *@
+                        <li>
+                          <form class="form-inline" asp-controller="Account" asp-action="LogOut" method="post">
+                            <button type="submit" class="nav-link btn btn-link text-dark" id="logout-button">Sign Out</button>
+                          </form>
+                        </li>
+                      </ul>
+                    }
+                    else
+                    {
+                      <a>@Html.ActionLink("Sign In", "LogIn", "Account")</a>
+                    }
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
