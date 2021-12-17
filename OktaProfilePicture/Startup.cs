@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,6 +42,11 @@ namespace OktaProfilePicture
                 OktaDomain = Configuration.GetValue<string>("Okta:Domain"),
                 Token = Configuration.GetValue<string>("Okta:ApiToken")
             }));
+            
+            services.AddAzureClients(builder =>
+            {
+                builder.AddBlobServiceClient(Configuration.GetValue<string>("Azure:BlobStorageConnectionString"));
+            });
             
             services.AddControllersWithViews();
         }

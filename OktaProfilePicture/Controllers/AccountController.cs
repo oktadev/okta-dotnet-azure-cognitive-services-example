@@ -1,5 +1,8 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
+using Azure.Storage.Sas;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -14,10 +17,13 @@ namespace OktaProfilePicture.Controllers
     public class AccountController : Controller
     {
         private readonly OktaClient _oktaClient;
+        private readonly BlobContainerClient _blobContainerClient;
 
-        public AccountController(OktaClient oktaClient)
+        public AccountController(OktaClient oktaClient, BlobServiceClient blobServiceClient)
         {
             _oktaClient = oktaClient;
+            _blobContainerClient = blobServiceClient.GetBlobContainerClient("okta-profile-picture-container");
+            _blobContainerClient.CreateIfNotExists();
         }
         
         public IActionResult LogIn()
@@ -45,6 +51,22 @@ namespace OktaProfilePicture.Controllers
         public async Task<IActionResult> Profile()
         {
             var user = await GetOktaUser();
+            var profileImage = (string)user.Profile["profileImageKey"];
+            if (string.IsNullOrEmpty(profileImage))
+            {
+                return View(user);
+            }
+
+            var sasBuilder = new BlobSasBuilder
+            {
+                StartsOn = DateTimeOffset.UtcNow,
+                ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(15)
+            };
+
+            sasBuilder.SetPermissions(BlobSasPermissions.Read);
+            var url = _blobContainerClient.GetBlobClient(profileImage).GenerateSasUri(sasBuilder);
+            ViewData["ProfileImageUrl"] = url;
+
             return View(user);
         }
         
@@ -80,8 +102,24 @@ namespace OktaProfilePicture.Controllers
             user.Profile.City = profile.City;
             user.Profile.CountryCode = profile.CountryCode;
 
+            if (profile.ProfileImage != null)
+            {
+                await UpdateUserImage();
+            }
+            
             await _oktaClient.Users.UpdateUserAsync(user, user.Id, null);
             return RedirectToAction("Profile");
+
+            async Task UpdateUserImage()
+            {
+                var blobName = Guid.NewGuid().ToString();
+                if (!string.IsNullOrEmpty((string)user.Profile["profileImageKey"]))
+                {
+                    await _blobContainerClient.DeleteBlobAsync((string)user.Profile["profileImageKey"]);
+                }
+                await _blobContainerClient.UploadBlobAsync(blobName, profile.ProfileImage?.OpenReadStream());
+                user.Profile["profileImageKey"] = blobName;
+            }
         }
         
         private async Task<IUser> GetOktaUser()
