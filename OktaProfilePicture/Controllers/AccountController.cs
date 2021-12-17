@@ -168,6 +168,30 @@ namespace OktaProfilePicture.Controllers
             }
         }
         
+        [Authorize]
+        public async Task<IActionResult> DeleteProfilePic()
+        {
+            var user = await GetOktaUser();
+
+            await CleanAzureResources();
+
+            user.Profile["profileImageKey"] = null;
+            user.Profile["personId"] = null;
+            await _oktaClient.Users.UpdateUserAsync(user, user.Id, null);
+            return RedirectToAction("Profile");
+
+            async Task CleanAzureResources()
+            {
+                // remove image from blob
+                await _blobContainerClient.DeleteBlobAsync((string)user.Profile["profileImageKey"]);
+
+                // remove face from Face services
+                var personId = Guid.Parse((string)user.Profile["personId"]);
+                await _faceClient.PersonGroupPerson.DeleteAsync(user.Id.ToLower(), personId);
+                await _faceClient.PersonGroup.DeleteAsync(user.Id.ToLower());
+            }
+        }
+        
         private async Task<IUser> GetOktaUser()
         {
             var subject = HttpContext.User.Claims.First(claim => claim.Type == JwtRegisteredClaimNames.Sub).Value;

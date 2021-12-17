@@ -23,10 +23,10 @@
             </p>
         }
         <div class="d-flex justify-content-end">
-            @* @if (ViewData["ProfileImageUrl"] != null) *@
-            @* { *@
-            @*    <a class="btn btn-outline-danger mr-4" asp-action="DeleteProfilePic">Delete Profile Picture</a> *@
-            @* } *@
+            @if (ViewData["ProfileImageUrl"] != null)
+            {
+               <a class="btn btn-outline-danger mr-4" asp-action="DeleteProfilePic">Delete Profile Picture</a>
+            }
             <a class="btn btn-primary" role="button" asp-action="EditProfile">Edit Profile</a>
         </div>
     </div>
