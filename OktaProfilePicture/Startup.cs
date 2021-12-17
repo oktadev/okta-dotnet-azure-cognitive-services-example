@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Azure.CognitiveServices.Vision.Face;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,14 @@ namespace OktaProfilePicture
             {
                 builder.AddBlobServiceClient(Configuration.GetValue<string>("Azure:BlobStorageConnectionString"));
             });
+            
+            services.AddSingleton((serviceProvider) =>
+                new FaceClient(
+                    new ApiKeyServiceClientCredentials(Configuration.GetValue<string>("Azure:SubscriptionKey")))
+                {
+                    Endpoint = Configuration.GetValue<string>("Azure:FaceClientEndpoint")
+                }
+            );
             
             services.AddControllersWithViews();
         }

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.CognitiveServices.Vision.Face;
+using Microsoft.Azure.CognitiveServices.Vision.Face.Models;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Okta.AspNetCore;
 using Okta.Sdk;
@@ -18,11 +20,14 @@ namespace OktaProfilePicture.Controllers
     {
         private readonly OktaClient _oktaClient;
         private readonly BlobContainerClient _blobContainerClient;
+        private readonly FaceClient _faceClient;
 
-        public AccountController(OktaClient oktaClient, BlobServiceClient blobServiceClient)
+        public AccountController(OktaClient oktaClient, BlobServiceClient blobServiceClient, FaceClient faceClient)
         {
             _oktaClient = oktaClient;
-            _blobContainerClient = blobServiceClient.GetBlobContainerClient("okta-profile-picture-container");
+            _faceClient = faceClient;
+
+            _blobContainerClient = blobServiceClient.GetBlobContainerClient("okta-profile-picture-container2");
             _blobContainerClient.CreateIfNotExists();
         }
         
@@ -102,10 +107,22 @@ namespace OktaProfilePicture.Controllers
             user.Profile.City = profile.City;
             user.Profile.CountryCode = profile.CountryCode;
 
-            if (profile.ProfileImage != null)
+            if (profile.ProfileImage == null)
             {
-                await UpdateUserImage();
+                await _oktaClient.Users.UpdateUserAsync(user, user.Id, null);
+                return RedirectToAction("Profile");
             }
+
+            var stream = profile.ProfileImage.OpenReadStream();
+            var detectedFaces = await _faceClient.Face.DetectWithStreamAsync(stream, recognitionModel: RecognitionModel.Recognition04, detectionModel: DetectionModel.Detection01);
+
+            if (detectedFaces.Count != 1 || detectedFaces[0].FaceId == null)
+            {
+                ModelState.AddModelError("", $"Detected {detectedFaces.Count} faces instead of 1 face");
+                return View(profile);
+            }
+
+            await UpdateUserImage();
             
             await _oktaClient.Users.UpdateUserAsync(user, user.Id, null);
             return RedirectToAction("Profile");
