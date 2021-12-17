@@ -122,7 +122,36 @@ namespace OktaProfilePicture.Controllers
                 return View(profile);
             }
 
-            await UpdateUserImage();
+            var personGroupId = user.Id.ToLower();
+
+            if (string.IsNullOrEmpty((string)user.Profile["personId"]))
+            {
+                await _faceClient.PersonGroup.CreateAsync(personGroupId, user.Profile.Login, recognitionModel: RecognitionModel.Recognition04);
+
+                stream = profile.ProfileImage.OpenReadStream();
+                var personId = (await _faceClient.PersonGroupPerson.CreateAsync(personGroupId, user.Profile.Login)).PersonId;
+                await _faceClient.PersonGroupPerson.AddFaceFromStreamAsync(personGroupId, personId, stream);
+
+                user.Profile["personId"] = personId;
+                await UpdateUserImage();
+            }
+            else
+            {
+                var faceId = detectedFaces[0].FaceId.Value;
+
+                var personId = new Guid((string)user.Profile["personId"]);
+                var verifyResult = await _faceClient.Face.VerifyFaceToPersonAsync(faceId, personId, personGroupId);
+
+                if (verifyResult.IsIdentical && verifyResult.Confidence >= 0.8)
+                {
+                    await UpdateUserImage();
+                }
+                else
+                {
+                    ModelState.AddModelError("", "The uploaded picture doesn't match your current picture");
+                    return View(profile);
+                }
+            }
             
             await _oktaClient.Users.UpdateUserAsync(user, user.Id, null);
             return RedirectToAction("Profile");
