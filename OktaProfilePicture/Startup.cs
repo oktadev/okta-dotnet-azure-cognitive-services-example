@@ -5,6 +5,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Okta.AspNetCore;
+using Okta.Sdk;
+using Okta.Sdk.Configuration;
 
 namespace OktaProfilePicture
 {
@@ -33,6 +35,13 @@ namespace OktaProfilePicture
                     ClientId = Configuration.GetValue<string>("Okta:ClientId"),
                     ClientSecret = Configuration.GetValue<string>("Okta:ClientSecret")
                 });
+            
+            services.AddSingleton((serviceProvider) => new OktaClient(new OktaClientConfiguration()
+            {
+                OktaDomain = Configuration.GetValue<string>("Okta:Domain"),
+                Token = Configuration.GetValue<string>("Okta:ApiToken")
+            }));
+            
             services.AddControllersWithViews();
         }
 
